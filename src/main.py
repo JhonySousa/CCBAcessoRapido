@@ -143,7 +143,7 @@ def build_category_pages(conn: sqlite3.Connection):
 
             pessoas = conn.execute(
                 """
-                SELECT f.nome as funcao, p.nome, p.telefone1, p.telefone2, c.localidade
+                SELECT f.nome as funcao, p.nome, f.descricao as descricao, p.telefone1, p.telefone2, c.localidade
                 FROM pessoa p
                 JOIN pessoa_funcao_casadeoracao pfc ON p.id = pfc.id_pessoa
                 JOIN funcao f ON pfc.id_funcao = f.id
@@ -156,7 +156,7 @@ def build_category_pages(conn: sqlite3.Connection):
 
             if pessoas:
                 cards_html = ""
-                for funcao, nome, tel1, tel2, comum in pessoas:
+                for funcao, nome, descricao, tel1, tel2, comum in pessoas:
                     tels = []
                     for t in (tel1, tel2):
                         if t:
@@ -168,11 +168,15 @@ def build_category_pages(conn: sqlite3.Connection):
                                 f'</svg><a href="tel:{clean}">{t}</a></span>'
                             )
                     tels_html = "".join(tels) if tels else '<span class="empty">Sem telefone</span>'
+                    descricao_html = ''
+                    if descricao:
+                        descricao_html = f'<hr><span>{descricao}</span>'
                     cards_html += f"""      <div class="card">
         <span class="card-title">{funcao}</span>
         <span class="card-desc">{nome}</span>
         <div class="card-tels">{tels_html}</div>
         <span class="card-comum">Comum: {comum}</span>
+        {descricao_html}
       </div>
 """
                 people_html = f'    <div class="grid">\n{cards_html}    </div>'
