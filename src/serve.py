@@ -5,6 +5,7 @@ import os
 import socket
 
 PORT = 8000
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def get_lan_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -16,7 +17,7 @@ def get_lan_ip():
     finally:
         s.close()
 
-os.chdir("generated")
+os.chdir(ROOT)
 
 with socketserver.TCPServer(("0.0.0.0", PORT), http.server.SimpleHTTPRequestHandler) as httpd:
     print(f"Serving at http://localhost:{PORT}")

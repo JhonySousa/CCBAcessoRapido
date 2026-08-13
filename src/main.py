@@ -1,7 +1,10 @@
 import sqlite3
 import unicodedata
+import os
 
-DB_PATH = "database.db"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(ROOT, "database.db")
+GENERATED = os.path.join(ROOT, "generated")
 
 
 def slugify(text):
@@ -63,7 +66,7 @@ def build_index(conn: sqlite3.Connection):
     cards_html = ""
     for cid, localidade in casas:
         slug = slugify(localidade)
-        cards_html += f'      <a href="{slug}.html" class="card">{localidade}</a>\n'
+        cards_html += f'      <a href="generated/{slug}.html" class="card">{localidade}</a>\n'
 
     html = f"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -71,7 +74,7 @@ def build_index(conn: sqlite3.Connection):
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Casas de Oração</title>
-  <link rel="stylesheet" href="static/style.css">
+  <link rel="stylesheet" href="generated/static/style.css">
 </head>
 <body>
   <main>
@@ -82,7 +85,7 @@ def build_index(conn: sqlite3.Connection):
 </body>
 </html>"""
 
-    with open("generated/index.html", "w") as f:
+    with open(os.path.join(ROOT, "index.html"), "w") as f:
         f.write(html)
 
 
@@ -112,7 +115,7 @@ def build_church_pages(conn: sqlite3.Connection):
 </head>
 <body>
   <main>
-    <a href="index.html" class="back">← Voltar</a>
+    <a href="../index.html" class="back">← Voltar</a>
     <h1>{localidade}</h1>
     <div class="grid">
 {cards_html}    </div>
@@ -120,7 +123,7 @@ def build_church_pages(conn: sqlite3.Connection):
 </body>
 </html>"""
 
-        with open(f"generated/{church_slug}.html", "w") as f:
+        with open(os.path.join(GENERATED, f"{church_slug}.html"), "w") as f:
             f.write(html)
 
 
@@ -181,21 +184,12 @@ def build_category_pages(conn: sqlite3.Connection):
 </body>
 </html>"""
 
-            with open(f"generated/{church_slug}_{cat_slug}.html", "w") as f:
+            with open(os.path.join(GENERATED, f"{church_slug}_{cat_slug}.html"), "w") as f:
                 f.write(html)
 
 
 def main():
-    import os
-    import shutil
-
-    os.makedirs('generated', exist_ok=True)
-
-    if os.path.isdir('static'):
-        dest = os.path.join('generated', 'static')
-        if os.path.exists(dest):
-            shutil.rmtree(dest)
-        shutil.copytree('static', dest)
+    os.makedirs(GENERATED, exist_ok=True)
 
     with sqlite3.connect(DB_PATH) as conn:
         init_db(conn)

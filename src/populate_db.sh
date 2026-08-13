@@ -1,7 +1,8 @@
 #!/bin/bash
 # Populate the database with sample casas de oração
 
-DB_PATH="database.db"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DB_PATH="$SCRIPT_DIR/../database.db"
 
 # Remove existing database if it exists
 rm -f "$DB_PATH"
