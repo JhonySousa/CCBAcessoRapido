@@ -94,7 +94,7 @@ def build_church_pages(conn: sqlite3.Connection):
         "SELECT id, localidade FROM casadeoracao ORDER BY localidade"
     ).fetchall()
     categorias = conn.execute(
-        "SELECT id, nome, descricao FROM categoria ORDER BY nome"
+        "SELECT id, nome, descricao FROM categoria"
     ).fetchall()
 
     for cid, localidade in casas:
@@ -137,33 +137,45 @@ def build_category_pages(conn: sqlite3.Connection):
 
     for cid, localidade in casas:
         church_slug = slugify(localidade)
-        for kid, nome, descricao in categorias:
-            cat_slug = slugify(nome)
+        for kid, cat_nome, descricao in categorias:
+            cat_slug = slugify(cat_nome)
             church_link = f"{church_slug}.html"
 
             pessoas = conn.execute(
                 """
-                SELECT p.nome, p.telefone1, p.telefone2
+                SELECT f.nome as funcao, p.nome, p.telefone1, p.telefone2, c.localidade
                 FROM pessoa p
                 JOIN pessoa_funcao_casadeoracao pfc ON p.id = pfc.id_pessoa
-                WHERE pfc.id_casadeoracao = ? AND pfc.id_funcao IN (
-                    SELECT f.id FROM funcao f WHERE f.id_categoria = ?
-                )
-                ORDER BY p.nome
+                JOIN funcao f ON pfc.id_funcao = f.id
+                JOIN casadeoracao c ON pfc.id_casadeoracao = c.id
+                WHERE pfc.id_casadeoracao = ? AND f.id_categoria = ?
+                ORDER BY f.nome, p.nome
                 """,
                 (cid, kid),
             ).fetchall()
 
             if pessoas:
-                rows_html = ""
-                for nome, tel1, tel2 in pessoas:
-                    telefone = tel1 or tel2 or ""
-                    rows_html += f"      <tr><td>{nome}</td><td>{telefone}</td></tr>\n"
-                people_html = f"""      <table>
-        <thead><tr><th>Nome</th><th>Telefone</th></tr></thead>
-        <tbody>
-{rows_html}        </tbody>
-      </table>"""
+                cards_html = ""
+                for funcao, nome, tel1, tel2, comum in pessoas:
+                    tels = []
+                    for t in (tel1, tel2):
+                        if t:
+                            clean = "".join(c for c in t if c.isdigit() or c == "+")
+                            tels.append(
+                                '<span class="tel-row">'
+                                '<svg class="tel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
+                                '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>'
+                                f'</svg><a href="tel:{clean}">{t}</a></span>'
+                            )
+                    tels_html = "".join(tels) if tels else '<span class="empty">Sem telefone</span>'
+                    cards_html += f"""      <div class="card">
+        <span class="card-title">{funcao}</span>
+        <span class="card-desc">{nome}</span>
+        <div class="card-tels">{tels_html}</div>
+        <span class="card-comum">Comum: {comum}</span>
+      </div>
+"""
+                people_html = f'    <div class="grid">\n{cards_html}    </div>'
             else:
                 people_html = '      <p class="empty">Nenhuma pessoa cadastrada nesta categoria.</p>'
 
@@ -172,13 +184,13 @@ def build_category_pages(conn: sqlite3.Connection):
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{nome} — {localidade}</title>
+  <title>{cat_nome} — {localidade}</title>
   <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
   <main>
     <a href="{church_link}" class="back">← Voltar</a>
-    <h1>{localidade} — {nome}</h1>
+    <h1>{localidade} — {cat_nome}</h1>
 {people_html}
   </main>
 </body>
