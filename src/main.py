@@ -66,7 +66,10 @@ def build_index(conn: sqlite3.Connection):
     cards_html = ""
     for cid, localidade in casas:
         slug = slugify(localidade)
-        cards_html += f'      <a href="generated/{slug}.html" class="card">{localidade}</a>\n'
+        cards_html += (
+            f'<a href="generated/{slug}.html" class="card">'
+            f'<span class="card-title">{localidade}</span></a>\n'
+        )
 
     html = f"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -103,7 +106,30 @@ def build_church_pages(conn: sqlite3.Connection):
         for kid, nome, descricao in categorias:
             cat_slug = slugify(nome)
             link = f"{church_slug}_{cat_slug}.html"
-            cards_html += f'      <a href="{link}" class="card"><span class="card-title">{nome}</span><span class="card-desc">{descricao}</span></a>\n'
+            descricao = descricao or ''
+            has_people = conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM pessoa_funcao_casadeoracao pfc
+                JOIN funcao f ON pfc.id_funcao = f.id
+                WHERE pfc.id_casadeoracao = ? AND f.id_categoria = ?
+                """,
+                (cid, kid),
+            ).fetchone()[0]
+            if has_people:
+                cards_html += (
+                    f'\t<a href="{link}" class="card">'
+                    f'  <span class="card-title">{nome}</span>'
+                    f'  <span class="card-desc">{descricao}</span>'
+                    '</a>\n'
+                )
+            else:
+                cards_html += (
+                    '\t<span class="card disabled" aria-disabled="true">'
+                    f'  <span class="card-title">{nome}</span>'
+                    f'  <span class="card-desc">{descricao}</span>'
+                    '</span>\n'
+                )
 
         html = f"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -143,42 +169,53 @@ def build_category_pages(conn: sqlite3.Connection):
 
             pessoas = conn.execute(
                 """
-                SELECT f.nome as funcao, p.nome, f.descricao as descricao, p.telefone1, p.telefone2, c.localidade
+                SELECT
+                    f.nome as funcao,
+                    p.nome,
+                    f.descricao as descricao,
+                    p.telefone1, p.telefone2,
+                    (SELECT localidade FROM casadeoracao WHERE id = p.comum) as comum,
+                    c.localidade
                 FROM pessoa p
                 JOIN pessoa_funcao_casadeoracao pfc ON p.id = pfc.id_pessoa
                 JOIN funcao f ON pfc.id_funcao = f.id
                 JOIN casadeoracao c ON pfc.id_casadeoracao = c.id
                 WHERE pfc.id_casadeoracao = ? AND f.id_categoria = ?
-                ORDER BY f.nome, p.nome
+                ORDER BY f.nome, p.nome;
                 """,
                 (cid, kid),
             ).fetchall()
 
+            tel_svg = (
+                '<svg class="tel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
+                '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>'
+            )
+
             if pessoas:
                 cards_html = ""
-                for funcao, nome, descricao, tel1, tel2, comum in pessoas:
+                for funcao, nome, descricao, tel1, tel2, comum, _ in pessoas:
                     tels = []
                     for t in (tel1, tel2):
                         if t:
                             clean = "".join(c for c in t if c.isdigit() or c == "+")
                             tels.append(
-                                '<span class="tel-row">'
-                                '<svg class="tel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
-                                '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>'
+                                f'<span class="tel-row">{tel_svg}'
                                 f'</svg><a href="tel:{clean}">{t}</a></span>'
                             )
                     tels_html = "".join(tels) if tels else '<span class="empty">Sem telefone</span>'
                     descricao_html = ''
                     if descricao:
                         descricao_html = f'<hr><span>{descricao}</span>'
-                    cards_html += f"""      <div class="card">
-        <span class="card-title">{funcao}</span>
-        <span class="card-desc">{nome}</span>
-        <div class="card-tels">{tels_html}</div>
-        <span class="card-comum">Comum: {comum}</span>
-        {descricao_html}
-      </div>
-"""
+                    print(nome, comum)
+                    cards_html += (
+                        '   <div class="card">'
+                        f'    <span class="card-title">{funcao}</span>'
+                        f'    <span class="card-desc">{nome}</span>'
+                        f'    <div class="card-tels">{tels_html}</div>'
+                        f'    <span class="card-comum">Comum: {comum}</span>'
+                        f'    {descricao_html}'
+                        '  </div>'
+                    )
                 people_html = f'    <div class="grid">\n{cards_html}    </div>'
             else:
                 people_html = '      <p class="empty">Nenhuma pessoa cadastrada nesta categoria.</p>'

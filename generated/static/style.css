@@ -76,6 +76,27 @@ h1 {
   outline: none;
 }
 
+.card.disabled {
+  background: #ebebeb;
+  border-color: #c9c9c9;
+  border-style: dashed;
+  color: #8a8a8a;
+  cursor: not-allowed;
+}
+
+.card.disabled:hover,
+.card.disabled:focus,
+.card.disabled:active {
+  border-color: #c9c9c9;
+  box-shadow: none;
+  transform: none;
+  outline: none;
+}
+
+.card.disabled .card-desc {
+  color: #9a9a9a;
+}
+
 .card:active {
   transform: scale(0.98);
 }
